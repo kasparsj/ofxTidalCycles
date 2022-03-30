@@ -3,9 +3,8 @@
 #include<iostream>
 #include<bitset>
 
-ofxTidalCycles::ofxTidalCycles(int port, int _barBuffer) {
+ofxTidalCycles::ofxTidalCycles(int _barBuffer) {
 	barBuffer = _barBuffer;
-	receiver.setup(port);
 	lastBar = 0;
 	resolution = 16;
 
@@ -20,89 +19,90 @@ ofxTidalCycles::ofxTidalCycles(int port, int _barBuffer) {
 	}
 }
 
-void ofxTidalCycles::update() {
-	ofSetColor(255);
+void ofxTidalCycles::parse(ofxOscMessage &m) {
 	int beatCount;
-	while (receiver.hasWaitingMessages()) {
-		ofxOscMessage m;
-		receiver.getNextMessage(m);
-		if (m.getAddress() == "/play2") {
-			TidalNote n;
-			n.timeStamp = ofGetElapsedTimef();
-			int instN = 0;
-			for (int i = 0; i < m.getNumArgs(); i += 2) {
-				if (m.getArgAsString(i) == "cycle") {
-					float cycle = m.getArgAsFloat(i + 1);
-					float bar;
-					float fract = modff(cycle, &bar);
-					if (notes.size() == 0) {
-						startBar = bar;
-					}
-					n.cycle = cycle;
-					n.fract = fract;
-					n.bar = bar;
-					beatCount = int(fract * resolution);
-					if (n.bar > lastBar) {
-						//beatMonitor();
-						calcStat();
-						beatShift();
-					}
-					lastBar = int(bar);
-				}
-				if (m.getArgAsString(i) == "n") {
-					instN = m.getArgAsInt(i + 1);
-				}
-				if (m.getArgAsString(i) == "s") {
-					string s = m.getArgAsString(i + 1) + ofToString(instN);
-					//string s = m.getArgAsString(i + 1);
-					n.s = s;
-					n.instNum = 0;
-					bool newInst = true;
-					for (int i = 0; i < instNameBuffer.size(); i++) {
-						if (n.s == instNameBuffer[i]) {
-							newInst = false;
-							n.instNum = i;
-						}
-					}
-					if (newInst) {
-						instNameBuffer.push_back(n.s);
-						std::sort(instNameBuffer.begin(), instNameBuffer.end());
-						n.instNum = instNameBuffer.size() - 1;
-					}
-				}
-				if (m.getArgAsString(i) == "cps") {
-					float cps = m.getArgAsFloat(i + 1);
-					n.cps = cps;
-				}
+    TidalNote n;
+    n.timeStamp = ofGetElapsedTimef();
+    int instN = 0;
+    for (int i = 0; i < m.getNumArgs(); i += 2) {
+        if (m.getArgAsString(i) == "cycle") {
+            float cycle = m.getArgAsFloat(i + 1);
+            float bar;
+            float fract = modff(cycle, &bar);
+            if (notes.size() == 0) {
+                startBar = bar;
+            }
+            n.cycle = cycle;
+            n.fract = fract;
+            n.bar = bar;
+            beatCount = int(fract * resolution);
+            if (n.bar > lastBar) {
+                //beatMonitor();
+                calcStat();
+                beatShift();
+            }
+            lastBar = int(bar);
+        }
+        if (m.getArgAsString(i) == "n") {
+            instN = m.getArgAsInt(i + 1);
+        }
+        if (m.getArgAsString(i) == "s") {
+            string s = m.getArgAsString(i + 1) + ofToString(instN);
+            //string s = m.getArgAsString(i + 1);
+            n.s = s;
+            n.instNum = 0;
+            bool newInst = true;
+            for (int i = 0; i < instNameBuffer.size(); i++) {
+                if (n.s == instNameBuffer[i]) {
+                    newInst = false;
+                    n.instNum = i;
+                }
+            }
+            if (newInst) {
+                instNameBuffer.push_back(n.s);
+                std::sort(instNameBuffer.begin(), instNameBuffer.end());
+                n.instNum = instNameBuffer.size() - 1;
+            }
+        }
+        if (m.getArgAsString(i) == "cps") {
+            float cps = m.getArgAsFloat(i + 1);
+            n.cps = cps;
+        }
+        if (m.getArgAsString(i) == "amp") {
+            float amp = m.getArgAsFloat(i + 1);
+            n.amp = amp;
+        }
+        if (m.getArgAsString(i) == "gain") {
+            float gain = m.getArgAsFloat(i + 1);
+            n.gain = gain;
+        }
 
-				
-				//erace unused inst
-				for (int i = 0; i < instNameBuffer.size(); i++) {
-					bool instExist = false;
-					for (int j = 0; j < notes.size(); j++) {
-						if (notes[j].bar > notes[notes.size() - 1].bar - maxBar * 2) {
-							if (notes[j].s == instNameBuffer[i]) {
-								instExist = true;
-							}
-						}
-					}
-					if (instExist == false) {
-						instNameBuffer.erase(instNameBuffer.begin() + i);
-					}
-				}
-			}
-			notes.push_back(n);
+        
+        //erace unused inst
+        for (int i = 0; i < instNameBuffer.size(); i++) {
+            bool instExist = false;
+            for (int j = 0; j < notes.size(); j++) {
+                if (notes[j].bar > notes[notes.size() - 1].bar - maxBar * 2) {
+                    if (notes[j].s == instNameBuffer[i]) {
+                        instExist = true;
+                    }
+                }
+            }
+            if (instExist == false) {
+                instNameBuffer.erase(instNameBuffer.begin() + i);
+            }
+        }
+    }
+    notes.push_back(n);
 
-			//add to note matrix
-			for (int i = 0; i < notes.size(); i++) {
-				noteMatrix[n.instNum][beatCount + max2 - resolution] = 1;
-			}
+    //add to note matrix
+    for (int i = 0; i < notes.size(); i++) {
+        noteMatrix[n.instNum][beatCount + max2 - resolution] = 1;
+    }
 
-			if (notes.size() > noteMax) {
-				notes.erase(notes.begin());
-			}
-		}
-	}
+    if (notes.size() > noteMax) {
+        notes.erase(notes.begin());
+    }
 }
 
 void ofxTidalCycles::drawNotes(float left, float top, float width, float height) {

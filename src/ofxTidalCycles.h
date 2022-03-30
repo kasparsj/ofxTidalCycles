@@ -13,12 +13,14 @@ public:
 	float fract;
 	float latency;
 	float timeStamp;
+    float amp = 0.4;
+    float gain = 1.0;
 };
 
 class ofxTidalCycles{
 public:
-	ofxTidalCycles(int port, int barBuffer);
-	void update();
+	ofxTidalCycles(int barBuffer);
+	void parse(ofxOscMessage &m);
 
 	void drawGrid(float left, float top, float width, float height);
 	void drawBg(float left, float top, float width, float height);
@@ -30,7 +32,6 @@ public:
 	void beatMonitor();
 	void calcStat();
 	
-	ofxOscReceiver receiver;
 	vector<TidalNote> notes;
 	vector<string> instNameBuffer;
 
